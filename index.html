@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ساعة 3D">
+  <title>ساعة 3D</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg1: #1a2350;
+      --bg2: #05070f;
+      --card-top: #2a3150;
+      --card-bottom: #1b2038;
+      --digit: #e8f4ff;
+      --accent: #38bdf8;
+      --muted: #8fa3c0;
+      --w: min(12vw, 110px);
+      --h: calc(var(--w) * 1.45);
+      --r: calc(var(--w) * 0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 30%, var(--bg1), var(--bg2) 70%);
+      color: var(--digit);
+      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* ===== المشهد الثلاثي الأبعاد ===== */
+    .scene {
+      perspective: 900px;
+      perspective-origin: 50% 40%;
+    }
+    .clock {
+      direction: ltr;
+      display: flex;
+      align-items: center;
+      gap: calc(var(--w) * 0.08);
+      transform-style: preserve-3d;
+      transform: rotateX(var(--rx, 12deg)) rotateY(var(--ry, -18deg));
+      transition: transform 0.25s ease-out;
+    }
+    .pair { display: flex; gap: calc(var(--w) * 0.06); transform-style: preserve-3d; }
+
+    /* ===== بطاقة الرقم ===== */
+    .digit {
+      position: relative;
+      width: var(--w);
+      height: var(--h);
+      font-family: "DejaVu Sans Mono", "Courier New", ui-monospace, monospace;
+      font-weight: 700;
+      font-size: calc(var(--h) * 0.78);
+      transform-style: preserve-3d;
+      /* سماكة البطاقة: طبقات ظل متدرّجة تحتها */
+      filter: drop-shadow(0 calc(var(--h) * 0.12) calc(var(--h) * 0.1) rgba(0,0,0,0.55));
+    }
+    .digit::before {            /* جسم البطاقة الخلفي لإعطاء عمق */
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: var(--r);
+      background: #0c1022;
+      transform: translateZ(calc(var(--w) * -0.18));
+    }
+    .half, .flap {
+      position: absolute;
+      left: 0; right: 0;
+      height: 50%;
+      overflow: hidden;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .half.top, .flap.front {
+      top: 0;
+      border-radius: var(--r) var(--r) 0 0;
+      background: linear-gradient(180deg, #343c62, var(--card-top));
+      transform-origin: 50% 100%;
+    }
+    .half.bottom, .flap.back {
+      bottom: 0;
+      border-radius: 0 0 var(--r) var(--r);
+      background: linear-gradient(180deg, var(--card-bottom), #151a30);
+      transform-origin: 50% 0;
+    }
+    .half span, .flap span {
+      display: block;
+      height: var(--h);
+      line-height: var(--h);
+      text-align: center;
+      color: var(--digit);
+      text-shadow:
+        0 1px 0 #b8c8e0,
+        0 2px 0 #8fa0bd,
+        0 3px 0 #66779a,
+        0 0 calc(var(--h) * 0.25) rgba(56, 189, 248, 0.45);
+    }
+    .half.bottom span, .flap.back span { transform: translateY(-50%); }
+    .half.top::after, .flap.front::after {   /* خط الطيّ بالنص */
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 2px;
+      background: rgba(0,0,0,0.55);
+    }
+    .flap.front { transform: rotateX(0deg); z-index: 2; }
+    .flap.back  { transform: rotateX(90deg); z-index: 2; }
+
+    .digit.flip .flap.front { animation: flipTop 0.3s ease-in forwards; }
+    .digit.flip .flap.back  { animation: flipBottom 0.3s 0.3s ease-out forwards; }
+    @keyframes flipTop    { from { transform: rotateX(0deg); }  to { transform: rotateX(-90deg); } }
+    @keyframes flipBottom { from { transform: rotateX(90deg); } to { transform: rotateX(0deg); } }
+
+    /* ===== النقطتان ===== */
+    .colon {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--h) * 0.22);
+      padding: 0 calc(var(--w) * 0.04);
+      transform: translateZ(calc(var(--w) * 0.1));
+    }
+    .colon i {
+      width: calc(var(--w) * 0.14);
+      height: calc(var(--w) * 0.14);
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 calc(var(--w) * 0.18) var(--accent);
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    /* ===== الأرضية والانعكاس ===== */
+    .floor {
+      width: calc(var(--w) * 7.5);
+      height: calc(var(--h) * 0.3);
+      margin-top: calc(var(--h) * 0.25);
+      background: radial-gradient(ellipse at center, rgba(56,189,248,0.28), transparent 70%);
+      filter: blur(6px);
+      transform: rotateX(70deg);
+    }
+
+    #date {
+      margin-top: calc(var(--h) * 0.35);
+      font-size: clamp(1rem, 4.2vw, 1.6rem);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .actions {
+      position: fixed;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 16px;
+    }
+    .actions button {
+      font: inherit;
+      font-size: 0.95rem;
+      color: var(--digit);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 999px;
+      padding: 10px 18px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+    .actions button[hidden] { display: none; }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      :root { --w: min(9vw, 18vh * 0.69 * 4); }
+      #date { margin-top: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .digit.flip .flap.front, .digit.flip .flap.back { animation-duration: 0.01s; animation-delay: 0s; }
+      .clock { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene">
+    <div class="clock" id="clock"></div>
+    <div class="floor"></div>
+  </div>
+  <div id="date"></div>
+
+  <div class="actions">
+    <button id="motionBtn" hidden>تفعيل الحركة 3D</button>
+    <button id="formatBtn">12 / 24</button>
+    <button id="installBtn" hidden>تنزيل التطبيق</button>
+  </div>
+
+  <script>
+    // ===== بناء البطاقات =====
+    const clockEl = document.getElementById('clock');
+    const dateEl = document.getElementById('date');
+    const digits = [];
+
+    function makeDigit() {
+      const d = document.createElement('div');
+      d.className = 'digit';
+      d.innerHTML =
+        '<div class="half top"><span>0</span></div>' +
+        '<div class="half bottom"><span>0</span></div>' +
+        '<div class="flap front"><span>0</span></div>' +
+        '<div class="flap back"><span>0</span></div>';
+      const s = d.querySelectorAll('span');
+      const obj = { el: d, top: s[0], bottom: s[1], front: s[2], back: s[3], value: null };
+      d.querySelector('.flap.back').addEventListener('animationend', () => {
+        obj.bottom.textContent = obj.value;
+        d.classList.remove('flip');
+      });
+      return obj;
+    }
+
+    for (let g = 0; g < 3; g++) {
+      if (g > 0) {
+        const c = document.createElement('div');
+        c.className = 'colon';
+        c.innerHTML = '<i></i><i></i>';
+        clockEl.appendChild(c);
+      }
+      const pair = document.createElement('div');
+      pair.className = 'pair';
+      for (let i = 0; i < 2; i++) {
+        const d = makeDigit();
+        digits.push(d);
+        pair.appendChild(d.el);
+      }
+      clockEl.appendChild(pair);
+    }
+
+    function setDigit(d, v) {
+      if (d.value === v) return;
+      if (d.value === null) {            // أول عرض بدون حركة
+        d.value = v;
+        d.top.textContent = d.bottom.textContent = d.front.textContent = d.back.textContent = v;
+        return;
+      }
+      const old = d.value;
+      d.value = v;
+      d.top.textContent = v;
+      d.bottom.textContent = old;
+      d.front.textContent = old;
+      d.back.textContent = v;
+      d.el.classList.remove('flip');
+      void d.el.offsetWidth;             // إعادة تشغيل الأنيميشن
+      d.el.classList.add('flip');
+    }
+
+    // ===== الوقت =====
+    let use12 = false;
+    try { use12 = localStorage.getItem('clock12') === '1'; } catch (e) {}
+
+    const pad = n => String(n).padStart(2, '0');
+    function update() {
+      const now = new Date();
+      let h = now.getHours();
+      if (use12) h = h % 12 || 12;
+      const str = pad(h) + pad(now.getMinutes()) + pad(now.getSeconds());
+      for (let i = 0; i < 6; i++) setDigit(digits[i], str[i]);
+      const dateStr = now.toLocaleDateString('ar', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      dateEl.textContent = use12 ? dateStr + ' · ' + (now.getHours() < 12 ? 'صباحًا' : 'مساءً') : dateStr;
+    }
+    update();
+    // مزامنة مع بداية كل ثانية
+    setTimeout(() => { update(); setInterval(update, 1000); }, 1000 - (Date.now() % 1000));
+
+    document.getElementById('formatBtn').addEventListener('click', () => {
+      use12 = !use12;
+      try { localStorage.setItem('clock12', use12 ? '1' : '0'); } catch (e) {}
+      update();
+    });
+
+    // ===== إمالة 3D: الماوس / اللمس / حساس الجوال =====
+    const MAX = 25;
+    let interacted = false;
+    function tilt(rx, ry) {
+      clockEl.style.setProperty('--rx', rx.toFixed(1) + 'deg');
+      clockEl.style.setProperty('--ry', ry.toFixed(1) + 'deg');
+    }
+    function fromPoint(x, y) {
+      interacted = true;
+      const nx = x / innerWidth - 0.5, ny = y / innerHeight - 0.5;
+      tilt(-ny * MAX * 1.2 + 8, nx * MAX * 1.6);
+    }
+    addEventListener('pointermove', e => fromPoint(e.clientX, e.clientY));
+    addEventListener('touchmove', e => fromPoint(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+
+    function onOrient(e) {
+      if (e.beta == null) return;
+      interacted = true;
+      const ry = Math.max(-MAX, Math.min(MAX, e.gamma));
+      const rx = Math.max(-MAX, Math.min(MAX, (e.beta - 45) * 0.6)) + 8;
+      tilt(rx, ry);
+    }
+    const motionBtn = document.getElementById('motionBtn');
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function' &&
+        matchMedia('(pointer: coarse)').matches) {
+      // آيفون: لازم المستخدم يسمح بالحساس
+      motionBtn.hidden = false;
+      motionBtn.addEventListener('click', async () => {
+        try {
+          if (await DeviceOrientationEvent.requestPermission() === 'granted') {
+            addEventListener('deviceorientation', onOrient);
+            motionBtn.hidden = true;
+          }
+        } catch (e) {}
+      });
+    } else {
+      addEventListener('deviceorientation', onOrient);
+    }
+
+    // حركة هادئة تلقائية لما ما في تفاعل
+    (function idle(t) {
+      if (!interacted) tilt(10 + Math.sin(t / 2300) * 6, Math.sin(t / 3100) * 22);
+      requestAnimationFrame(idle);
+    })(0);
+
+    // ===== إبقاء الشاشة شغّالة =====
+    let wakeLock = null;
+    async function keepAwake() {
+      try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+    }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+    addEventListener('click', keepAwake, { once: true });
+    keepAwake();
+
+    // ===== التثبيت كتطبيق (PWA) =====
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('installBtn');
+    addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.hidden = false;
+    });
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+    addEventListener('appinstalled', () => { installBtn.hidden = true; });
+
+    if ('serviceWorker' in navigator) {
+      addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>
